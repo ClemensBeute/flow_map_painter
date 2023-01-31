@@ -10,7 +10,7 @@ You find it, when you are in the named modes.
 
 It's located in the right side Panel in the Tool category -> 3D Flow Map Paint / 2D Flow Map Paint.
 
-Make sure the image you want to paint on is selected in you material.
+Make sure the image you want to paint on is selected in your material.
 
 The Color Space of the image should be set to Linear. For maximum quality I would suggest using the exr format. With exr blender also doesn't change the color space to sRGB, every time you save it.
 
