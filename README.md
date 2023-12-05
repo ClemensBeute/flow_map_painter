@@ -4,6 +4,7 @@ This blender add-on provides a brush tool for flow map painting.
 
 It supports 2D Image Editor - Paint Mode and also the 3D Viewport - Texture Paint Mode and 3D Viewport - Vertex Paint Mode.
 
+![image](https://github.com/ClemensBeute/flow_map_painter/assets/3758308/704e9279-ea38-40d4-9fdf-1cfbd3ddfd1a)
 
 ## Usage
 You find it, when you are in the named modes.
