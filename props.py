@@ -17,8 +17,63 @@
 #
 # ##### END GPL LICENSE BLOCK #####
 
-circle = None
-circle_pos = (0, 0)
-tri_obj = None
-pressing = False
-mode = None
+import bpy
+
+
+class FlowmapPainterProperties(bpy.types.PropertyGroup):
+
+    brush_spacing: bpy.props.FloatProperty(
+        name="brush spacing",
+        description="How much has the mouse to travel, bevor a new stroke is painted?",
+        default=20,
+        soft_min=0.1,
+        soft_max=100,
+        min=0,
+        subtype='PIXEL'
+    )
+
+    trace_distance: bpy.props.FloatProperty(
+        name="trace distance",
+        description="How deep reaches your object into the scene?",
+        min=0,
+        soft_max=10000,
+        default=1000,
+        unit='LENGTH'
+    )
+
+    space_type_items = (
+        (
+            "uv_space",
+            "UV Space",
+            "Use it, if you want to transform your material UV Coordinates. Your object needs a UV Map",
+            'UV',
+            0,
+        ),
+        (
+            "object_space",
+            "Object Space",
+            "Use it, if you want to transform your material Object Coordinates. If empty, current object is used. No UV Map needed in Vertex Paint",
+            'OBJECT_DATAMODE',
+            1,
+        ),
+        (
+            "world_space",
+            "World Space",
+            "Similar to object Space, but it uses world coordinates",
+            'WORLD_DATA',
+            2,
+        ),
+    )
+
+    space_type: bpy.props.EnumProperty(
+        name="space type",
+        description="Which space type is used for the direction color?",
+        items=space_type_items,
+        default=0
+    )
+
+    object: bpy.props.PointerProperty(
+        name="object",
+        description="Which object is used for the object space? Default is the active object itself.",
+        type=bpy.types.Object
+    )

@@ -23,7 +23,7 @@ import mathutils
 from bpy_extras import view3d_utils
 from gpu_extras.presets import draw_circle_2d
 
-from . import props
+from . import vars
 
 
 def lerp(mix, a, b):
@@ -70,13 +70,12 @@ def triangulate_object(obj):
     bpy.data.objects.remove(ob, do_unlink=True)
 
     # hide temp obj
-    # new_ob.hide_viewport = True
     new_ob.hide_set(True)
 
     return new_ob
 
 
-def obj_ray_cast(context, area_pos, obj, matrix):
+def _obj_ray_cast(context, area_pos, obj, matrix):
     """Wrapper for ray casting that moves the ray into object space"""
 
     # get the context arguments
@@ -98,7 +97,9 @@ def obj_ray_cast(context, area_pos, obj, matrix):
 
     # cast the ray
     success, location, normal, face_index = obj.ray_cast(
-        origin=ray_origin_obj, direction=ray_direction_obj, distance=bpy.context.scene.flowmap_trace_distance
+        origin=ray_origin_obj,
+        direction=ray_direction_obj,
+        distance=bpy.context.scene.flowmap_painter_props.trace_distance
     )
 
     if success:
@@ -107,12 +108,12 @@ def obj_ray_cast(context, area_pos, obj, matrix):
 
 
 def line_trace_for_pos(context, area_pos):
-    """Trace at given position. Return hit in obje and world space."""
+    """Trace at given position. Return hit in object and world space."""
     obj = bpy.context.active_object
     matrix = obj.matrix_world.copy()
     hit_world = None
     if obj.type == 'MESH':
-        hit, normal, face_index = obj_ray_cast(context=context, area_pos=area_pos, obj=props.tri_obj, matrix=matrix)
+        hit, normal, face_index = _obj_ray_cast(context=context, area_pos=area_pos, obj=vars.tri_obj, matrix=matrix)
         if hit is not None:
             hit_world = matrix @ hit
             return hit, hit_world
@@ -159,12 +160,13 @@ def get_uv_space_direction_color(context, area_pos, area_prev_pos):
         hit = None
         hit_world = None
         if obj.type == 'MESH':
-            hit, normal, face_index = obj_ray_cast(context=context, area_pos=area_pos, obj=props.tri_obj, matrix=matrix)
+            hit, normal, face_index = _obj_ray_cast(context=context, area_pos=area_pos, obj=vars.tri_obj, matrix=matrix)
             if hit is not None:
                 hit_world = matrix @ hit
-                # scene.cursor.location = hit_world
+                # enable for debug:
+                # bpy.context.scene.cursor.location = hit_world
                 uv_co = pos_to_uv_co(
-                    obj=props.tri_obj, matrix_world=obj.matrix_world, world_pos=hit_world, face_index=face_index
+                    obj=vars.tri_obj, matrix_world=obj.matrix_world, world_pos=hit_world, face_index=face_index
                 )
 
         return uv_co, hit
@@ -192,7 +194,8 @@ def get_uv_space_direction_color(context, area_pos, area_prev_pos):
     color_range_vector = (norm_uv_direction_vector + 1) * 0.5
     direction_color = [color_range_vector[0], color_range_vector[1], 0]
 
-    # return [uv_pos[0], uv_pos[1], 0]
+    # enable for uv position debug:
+    # print([uv_pos[0], uv_pos[1], 0])
     return direction_color, hit_world
 
 
@@ -207,7 +210,7 @@ def get_obj_space_direction_color(context, area_pos, area_prev_pos):
         return None, None
     else:
 
-        obj = bpy.context.scene.flowmap_object
+        obj = bpy.context.scene.flowmap_painter_props.object
         if obj is None:
             obj = bpy.context.active_object
 
@@ -275,9 +278,9 @@ def paint_a_dot(context, area_type, mouse_position, event, location=None):
     area_position_y = bpy.context.area.y
 
     # get the active brush
-    if props.mode == 'VERTEX_PAINT':
+    if vars.mode == 'VERTEX_PAINT':
         brush = bpy.context.tool_settings.vertex_paint.brush
-    elif props.mode == '2D_PAINT' or props.mode == '3D_PAINT':
+    elif vars.mode == '2D_PAINT' or vars.mode == '3D_PAINT':
         brush = bpy.context.tool_settings.image_paint.brush
     else:
         return None
@@ -304,7 +307,6 @@ def paint_a_dot(context, area_type, mouse_position, event, location=None):
             "location": loc,
             "mouse": (mouse_position[0] - area_position_x, mouse_position[1] - area_position_y),
             "mouse_event": (mouse_position[0] - area_position_x, mouse_position[1] - area_position_y),
-            # "pen_flip": False,
             "pressure": pressure,
             "size": size,
             "time": 1,
@@ -313,10 +315,10 @@ def paint_a_dot(context, area_type, mouse_position, event, location=None):
         }
     ]
 
-    if props.mode == '2D_PAINT' or props.mode == '3D_PAINT':
+    if vars.mode == '2D_PAINT' or vars.mode == '3D_PAINT':
         bpy.ops.paint.image_paint(stroke=stroke, mode='NORMAL')
 
-    elif props.mode == 'VERTEX_PAINT':
+    elif vars.mode == 'VERTEX_PAINT':
         if location:
             bpy.ops.paint.vertex_paint(stroke=stroke, mode='NORMAL')
 
@@ -332,10 +334,10 @@ def modal_paint_three_d(self, context, event):
     if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
         # set first position of stroke
         self.furthest_position = numpy.array([event.mouse_x, event.mouse_y])
-        props.pressing = True
+        vars.pressing = True
 
     if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
-        props.pressing = False
+        vars.pressing = False
 
     if event.type == 'MOUSEMOVE' or event.type == 'LEFTMOUSE':
         # get mouse positions
@@ -351,18 +353,18 @@ def modal_paint_three_d(self, context, event):
 
         # if mouse has traveled enough distance and mouse is pressed, get color, draw a dot
         distance = numpy.linalg.norm(self.furthest_position - mouse_position)
-        if distance >= bpy.context.scene.flowmap_brush_spacing:
+        if distance >= bpy.context.scene.flowmap_painter_props.brush_spacing:
             # reset threshold
             self.furthest_position = mouse_position
 
             # finding the direction vector, from UV Coordinates, from 3D location | object space | world space
             direction_color = None
             location = None
-            if bpy.context.scene.flowmap_space_type == "uv_space":
+            if bpy.context.scene.flowmap_painter_props.space_type == "uv_space":
                 direction_color, location = get_uv_space_direction_color(context, area_pos, area_prev_pos)
-            elif bpy.context.scene.flowmap_space_type == "object_space":
+            elif bpy.context.scene.flowmap_painter_props.space_type == "object_space":
                 direction_color, location = get_obj_space_direction_color(context, area_pos, area_prev_pos)
-            elif bpy.context.scene.flowmap_space_type == "world_space":
+            elif bpy.context.scene.flowmap_painter_props.space_type == "world_space":
                 direction_color, location = get_world_space_direction_color(context, area_pos, area_prev_pos)
 
             # set paint brush color, but check for nan first (fucked value, when direction didnt work)
@@ -370,12 +372,12 @@ def modal_paint_three_d(self, context, event):
                 if not any(numpy.isnan(val) for val in direction_color):
                     bpy.context.scene.tool_settings.unified_paint_settings.color = direction_color
 
-            if props.pressing:
+            if vars.pressing:
                 # paint the actual dots with the selected brush spacing
                 # if mouse moved more than double of the brush_spacing -> draw substeps
-                substeps_float = distance / bpy.context.scene.flowmap_brush_spacing
+                substeps_float = distance / bpy.context.scene.flowmap_painter_props.brush_spacing
                 substeps_int = int(substeps_float)
-                if distance > 2 * bpy.context.scene.flowmap_brush_spacing:
+                if distance > 2 * bpy.context.scene.flowmap_painter_props.brush_spacing:
                     # substep_count = substeps_int
                     substep_count = substeps_int
                     while substep_count > 0:
@@ -404,22 +406,22 @@ def modal_paint_three_d(self, context, event):
             self.mouse_prev_position = mouse_position
 
         # remove circle
-        if props.circle:
-            bpy.types.SpaceView3D.draw_handler_remove(props.circle, 'WINDOW')
-            props.circle = None
+        if vars.circle:
+            bpy.types.SpaceView3D.draw_handler_remove(vars.circle, 'WINDOW')
+            vars.circle = None
 
-        props.circle_pos = (event.mouse_region_x, event.mouse_region_y)
+        vars.circle_pos = (event.mouse_region_x, event.mouse_region_y)
 
         # draw circle
         def draw():
-            pos = props.circle_pos
+            pos = vars.circle_pos
             brush_col = bpy.context.scene.tool_settings.unified_paint_settings.color
             col = (brush_col[0], brush_col[1], brush_col[2], 1)
             size = bpy.context.scene.tool_settings.unified_paint_settings.size
 
             draw_circle_2d(pos, col, size)
 
-        props.circle = bpy.types.SpaceView3D.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL')
+        vars.circle = bpy.types.SpaceView3D.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL')
 
         return {'RUNNING_MODAL'}
 
@@ -427,10 +429,10 @@ def modal_paint_three_d(self, context, event):
         # clean brush color from nan shit
         bpy.context.scene.tool_settings.unified_paint_settings.color = (0.5, 0.5, 0.5)
         # remove circle
-        if props.circle:
-            bpy.types.SpaceView3D.draw_handler_remove(props.circle, 'WINDOW')
+        if vars.circle:
+            bpy.types.SpaceView3D.draw_handler_remove(vars.circle, 'WINDOW')
             context.area.tag_redraw()
-            props.circle = None
+            vars.circle = None
         context.area.tag_redraw()
         remove_temp_obj()
         return {'FINISHED'}

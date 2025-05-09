@@ -22,7 +22,7 @@ import numpy
 from gpu_extras.presets import draw_circle_2d
 
 from . import funcs
-from . import props
+from . import vars
 
 
 class FLOWMAP_OT_FLOW_MAP_PAINT_2D(bpy.types.Operator):
@@ -41,10 +41,10 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_2D(bpy.types.Operator):
         if event.type == 'LEFTMOUSE' and event.value == 'PRESS':
             # set first position of stroke
             self.furthest_position = numpy.array([event.mouse_x, event.mouse_y])
-            props.pressing = True
+            vars.pressing = True
 
         if event.type == 'LEFTMOUSE' and event.value == 'RELEASE':
-            props.pressing = False
+            vars.pressing = False
 
         if event.type == 'MOUSEMOVE' or event.type == 'LEFTMOUSE':
             # get mouse positions
@@ -52,7 +52,7 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_2D(bpy.types.Operator):
 
             # if mouse has traveled enough distance and mouse is pressed, draw a dot
             distance = numpy.linalg.norm(self.furthest_position - mouse_position)
-            if distance >= bpy.context.scene.flowmap_brush_spacing:
+            if distance >= bpy.context.scene.flowmap_painter_props.brush_spacing:
                 # reset threshold
                 self.furthest_position = mouse_position
 
@@ -74,12 +74,12 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_2D(bpy.types.Operator):
                 else:
                     bpy.context.scene.tool_settings.unified_paint_settings.color = direction_color
 
-                if props.pressing:
+                if vars.pressing:
                     # paint the actual dots with the selected brush spacing
                     # if mouse moved more than double of the brush_spacing -> draw substeps
-                    substeps_float = distance / bpy.context.scene.flowmap_brush_spacing
+                    substeps_float = distance / bpy.context.scene.flowmap_painter_props.brush_spacing
                     substeps_int = int(substeps_float)
-                    if distance > 2 * bpy.context.scene.flowmap_brush_spacing:
+                    if distance > 2 * bpy.context.scene.flowmap_painter_props.brush_spacing:
                         # substep_count = substeps_int
                         substep_count = substeps_int
                         while substep_count > 0:
@@ -102,15 +102,15 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_2D(bpy.types.Operator):
                 self.mouse_prev_position = mouse_position
 
             # remove circle
-            if props.circle:
-                bpy.types.SpaceImageEditor.draw_handler_remove(props.circle, 'WINDOW')
-                props.circle = None
+            if vars.circle:
+                bpy.types.SpaceImageEditor.draw_handler_remove(vars.circle, 'WINDOW')
+                vars.circle = None
 
-            props.circle_pos = (event.mouse_region_x, event.mouse_region_y)
+            vars.circle_pos = (event.mouse_region_x, event.mouse_region_y)
 
             # draw circle
             def draw():
-                pos = props.circle_pos
+                pos = vars.circle_pos
                 brush_col = bpy.context.scene.tool_settings.unified_paint_settings.color
                 col = (brush_col[0], brush_col[1], 0, 1)
 
@@ -118,7 +118,7 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_2D(bpy.types.Operator):
 
                 draw_circle_2d(pos, col, size)
 
-            props.circle = bpy.types.SpaceImageEditor.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL')
+            vars.circle = bpy.types.SpaceImageEditor.draw_handler_add(draw, (), 'WINDOW', 'POST_PIXEL')
 
             return {'RUNNING_MODAL'}
 
@@ -126,9 +126,9 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_2D(bpy.types.Operator):
             # print("stop")
             bpy.context.scene.tool_settings.unified_paint_settings.color = (0.5, 0.5, 0.5)
             # remove circle
-            if props.circle:
-                bpy.types.SpaceImageEditor.draw_handler_remove(props.circle, 'WINDOW')
-                props.circle = None
+            if vars.circle:
+                bpy.types.SpaceImageEditor.draw_handler_remove(vars.circle, 'WINDOW')
+                vars.circle = None
             context.area.tag_redraw()
 
             return {'FINISHED'}
@@ -143,7 +143,7 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_2D(bpy.types.Operator):
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_color = True
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_strength = True
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_size = True
-        props.mode = '2D_PAINT'
+        vars.mode = '2D_PAINT'
         bpy.context.window.cursor_set('PAINT_CROSS')
         return {'RUNNING_MODAL'}
 
@@ -169,8 +169,8 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_3D(bpy.types.Operator):
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_color = True
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_strength = True
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_size = True
-        props.tri_obj = funcs.triangulate_object(obj=bpy.context.active_object)
-        props.mode = '3D_PAINT'
+        vars.tri_obj = funcs.triangulate_object(obj=bpy.context.active_object)
+        vars.mode = '3D_PAINT'
         bpy.context.window.cursor_set('PAINT_CROSS')
         return {'RUNNING_MODAL'}
 
@@ -195,7 +195,7 @@ class FLOWMAP_OT_FLOW_MAP_PAINT_VERTCOL(bpy.types.Operator):
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_color = True
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_strength = True
         bpy.context.scene.tool_settings.unified_paint_settings.use_unified_size = True
-        props.tri_obj = funcs.triangulate_object(obj=bpy.context.active_object)
-        props.mode = 'VERTEX_PAINT'
+        vars.tri_obj = funcs.triangulate_object(obj=bpy.context.active_object)
+        vars.mode = 'VERTEX_PAINT'
         bpy.context.window.cursor_set('PAINT_CROSS')
         return {'RUNNING_MODAL'}

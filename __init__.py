@@ -32,6 +32,7 @@ bl_info = {
 import bpy
 
 from .ops import FLOWMAP_OT_FLOW_MAP_PAINT_2D, FLOWMAP_OT_FLOW_MAP_PAINT_3D, FLOWMAP_OT_FLOW_MAP_PAINT_VERTCOL
+from .props import FlowmapPainterProperties
 
 
 def draw_interface(self, context, mode):
@@ -50,23 +51,23 @@ def draw_interface(self, context, mode):
     if mode == '3D_PAINT' or mode == 'VERTEX_PAINT':
         column1.label(icon='ORIENTATION_GLOBAL')
         column2.label(text="Space Type")
-        column3.prop(context.scene, "flowmap_space_type", text="")
+        column3.prop(context.scene.flowmap_painter_props, "space_type", text="")
 
-        if context.scene.flowmap_space_type == "object_space":
+        if context.scene.flowmap_painter_props.space_type == "object_space":
             column1.label(text="")
             column2.label(text="Object")
-            column3.prop_search(context.scene, "flowmap_object", context.scene, "objects", text="")
+            column3.prop_search(context.scene.flowmap_painter_props, "object", context.scene, "objects", text="")
 
     # spacing
     column1.label(icon='ONIONSKIN_ON')
     column2.label(text="Brush Spacing")
-    column3.prop(context.scene, "flowmap_brush_spacing", slider=True, text="")
+    column3.prop(context.scene.flowmap_painter_props, "brush_spacing", slider=True, text="")
 
     # trace distance
     if mode == '3D_PAINT' or mode == 'VERTEX_PAINT':
         column1.label(icon='CON_TRACKTO')
         column2.label(text="Trace Distance")
-        column3.prop(context.scene, "flowmap_trace_distance", slider=True, text="")
+        column3.prop(context.scene.flowmap_painter_props, "trace_distance", slider=True, text="")
 
     # exit
     self.layout.separator()
@@ -148,49 +149,9 @@ class FLOWMAP_PT_FLOW_MAP_PAINT_VERTCOL(bpy.types.Panel):
 
 def register():
 
-    # VARIABLES
-    bpy.types.Scene.flowmap_brush_spacing = bpy.props.FloatProperty(
-        name="brush spacing",
-        description="How much has the mouse to travel, bevor a new stroke is painted?",
-        default=20,
-        soft_min=0.1,
-        soft_max=100,
-        min=0,
-        subtype='PIXEL'
-    )
-
-    bpy.types.Scene.flowmap_trace_distance = bpy.props.FloatProperty(
-        name="trace distance",
-        description="How deep reaches your object into the scene?",
-        min=0,
-        soft_max=10000,
-        default=1000,
-        unit='LENGTH'
-    )
-
-    bpy.types.Scene.flowmap_space_type = bpy.props.EnumProperty(
-        name="space type",
-        description="Which space type is used for the direction color?",
-        items=[
-            (
-                "uv_space", "UV Space",
-                "Use it, if you want to transform your material UV Coordinates. Your object needs a UV Map", 'UV', 0
-            ),
-            (
-                "object_space", "Object Space",
-                "Use it, if you want to transform your material Object Coordinates. If empty, current object is used. No UV Map needed in Vertex Paint",
-                'OBJECT_DATAMODE', 1
-            ),
-            ("world_space", "World Space", "Similar to object Space, but it uses world coordinates", 'WORLD_DATA', 2),
-        ],
-        default=0
-    )
-
-    bpy.types.Scene.flowmap_object = bpy.props.PointerProperty(
-        name="object",
-        description="Which object is used for the object space? Default is the active object itself.",
-        type=bpy.types.Object
-    )
+    # PROPS
+    bpy.utils.register_class(FlowmapPainterProperties)
+    bpy.types.Scene.flowmap_painter_props = bpy.props.PointerProperty(type=FlowmapPainterProperties)
 
     # OPERATORS
     bpy.utils.register_class(FLOWMAP_OT_FLOW_MAP_PAINT_2D)
@@ -207,11 +168,9 @@ def register():
 
 def unregister():
 
-    # VARIABLES
-    del bpy.types.Scene.flowmap_brush_spacing
-    del bpy.types.Scene.flowmap_trace_distance
-    del bpy.types.Scene.flowmap_space_type
-    del bpy.types.Scene.flowmap_object
+    # PROPS
+    del bpy.types.Object.flowmap_painter_props
+    bpy.utils.register_class(FlowmapPainterProperties)
 
     # OPERATORS
     bpy.utils.unregister_class(FLOWMAP_OT_FLOW_MAP_PAINT_2D)
