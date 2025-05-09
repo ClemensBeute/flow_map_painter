@@ -169,8 +169,8 @@ def register():
 def unregister():
 
     # PROPS
-    del bpy.types.Object.flowmap_painter_props
-    bpy.utils.register_class(FlowmapPainterProperties)
+    del bpy.types.Scene.flowmap_painter_props
+    bpy.utils.unregister_class(FlowmapPainterProperties)
 
     # OPERATORS
     bpy.utils.unregister_class(FLOWMAP_OT_FLOW_MAP_PAINT_2D)
